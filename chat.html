@@ -2,9 +2,11 @@
 <head>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
+  <script src="http://maps.googleapis.com/maps/api/js"></script>
 </head>
 <body>
   <script>
+
   var socket = io.connect();
   socket.on('messagesFromServer', function(data){
 	if (data.userId !== undefined){
@@ -13,7 +15,7 @@
 		$('#username').attr("disabled", true);
 	}
 	var chatlog = '';
-    for (i=0; i<data.messages.length; i++){
+    for (var i in data.messages){
 		chatlog += "user_" + data.messages[i].userId + " : " + data.messages[i].message;
 		chatlog += "<br>";
 	}
@@ -24,28 +26,42 @@
     $('#send').click(function(e){
       socket.emit('messageFromClient', {'message': $('#text').val()});
     });
-	$('#setLocation').click(function(e){
-      socket.emit('locationFromClient', {'location': $('#location').val()});
-    });
-	$('#start').click(function(e){
-		socket.emit('initFromClient', {'location': $('#location').val()});
-		$(this).attr("disabled",true);
-		$('#setLocation').attr("disabled",false);
-	$('#send').attr("disabled",false);
-	});
-	$('#setLocation').attr("disabled",true);
-	$('#send').attr("disabled",true);
-  });
+	socket.emit('initFromClient', {'location': {latitude: 0, longitude: 0}});
+	initialized = true;
+  }); 
   
+  function initializeMap() {
+	  var marker;
+	  var mapProp = {
+		center:new google.maps.LatLng(51.508742,-0.120850),
+		zoom:5,
+		mapTypeId:google.maps.MapTypeId.ROADMAP
+	  };
+	  var map=new google.maps.Map(document.getElementById("googleMap"),mapProp);
+	  
+	  google.maps.event.addListener(map, 'click', function(event) {
+		if(typeof marker === "object"){
+		  marker.setMap(null);
+		};
+		marker = new google.maps.Marker({
+		  position: event.latLng,
+		  map: map,
+		});
+		socket.emit('locationFromClient', {latitude : event.latLng.k, longitude : event.latLng.D});
+	  });
+  }
+
+google.maps.event.addDomListener(window, 'load', initializeMap);
+
   </script>
+  <div id="googleMap" style="width:500px;height:380px; float:left; margin-right:100px"></div>
+  <div style="float:left">
   <div id="messages"></div>
   <br><br>
-  <input id="username" disabled></input><br>
-  <input id="location"></input>
-  <button id="setLocation">set</button>
+  <input id="username" disabled></input>
   <br>
   <textarea id="text"></textarea>
   <br><button id="send">send</button>
-  <br><br><button id="start">start</button>
+  </div>
 </body>
 </html>

@@ -3,11 +3,9 @@
     var fs = require('fs');
 	var io = require("socket.io");
 	var chatManager = require("./chatManager").getInstance();
-	
+	var locManager = require("./locationManager");
 	
     var server = http.createServer(function(request, response){
-        console.log('Connection');
-		
 		fs.readFile(__dirname + "/" + "chat.html", function(error, data){
 				if (error){
 						response.writeHead(404);
@@ -23,23 +21,33 @@
 
     server.listen(3000);
 	
-
-	io.listen(server).on('connection', function(socket){
-		
-		
+	var clients = [];
+	io = io.listen(server);
+	io.sockets.on('connection', function(socket){
 		var user;
 		socket.on('initFromClient', function(data){
             user = chatManager.addUser(data.location);
-		    socket.emit('messagesFromServer', {'messages': chatManager.getMessages(), 'userId': user.id}); // Send message to sender
+			clients.push({user : user, socId : socket.id});
+		    socket.emit('messagesFromServer', {'messages': chatManager.getMessages(user.location), 'userId': user.id}); // Send message to sender
 		});
 		socket.on('messageFromClient', function(data){
-			chatManager.sendMessage(user, data.message);
-			socket.emit('messagesFromServer', {'messages': chatManager.getMessages(), 'userId': user.id}); // Send message to sender
-			socket.broadcast.emit('messagesFromServer', {'messages': chatManager.getMessages()}); // Send message to everyone BUT sender
+			chatManager.sendMessage(user, data.message, user.location);
+			socket.emit('messagesFromServer', {'messages': chatManager.getMessages(user.location), 'userId': user.id}); // Send message to sender
+			clients.forEach(function(v,i){
+				console.log(locManager.getDistance(v.user.location,user.location) < 100000);
+				if (locManager.getDistance(v.user.location,user.location) < 100000){
+					io.sockets.socket(v.socId).emit('messagesFromServer', {'messages': chatManager.getMessages(v.user.location)}); // Send message to everyone BUT sender
+				}
+			});
 		}); 
 		socket.on('locationFromClient', function(data){
-			user.location = data.location;
-			socket.emit('messages', {'messages': chatManager.getMessages(), 'userId': user.id}); // Send message to sender
+			user.location = data;
+			socket.emit('messages', {'messages': chatManager.getMessages(user.location), 'userId': user.id}); // Send message to sender
+			clients.forEach(function(v,i){
+				if (locManager.getDistance(v.user.location,user.location) < 100000){
+					io.sockets.socket(v.socId).emit('messagesFromServer', {'messages': chatManager.getMessages(v.user.location)}); // Send message to everyone BUT sender
+				}
+			});
 		}); 
 	});
 	
