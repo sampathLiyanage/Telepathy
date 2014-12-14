@@ -1,0 +1,51 @@
+<html>
+<head>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
+</head>
+<body>
+  <script>
+  var socket = io.connect();
+  socket.on('messagesFromServer', function(data){
+	if (data.userId !== undefined){
+		$('#username').attr("disabled", false);
+		$('#username').val("user_" + data.userId);
+		$('#username').attr("disabled", true);
+	}
+	var chatlog = '';
+    for (i=0; i<data.messages.length; i++){
+		chatlog += "user_" + data.messages[i].userId + " : " + data.messages[i].message;
+		chatlog += "<br>";
+	}
+    $('#messages').html(chatlog);
+  });
+
+  $(document).ready(function(){
+    $('#send').click(function(e){
+      socket.emit('messageFromClient', {'message': $('#text').val()});
+    });
+	$('#setLocation').click(function(e){
+      socket.emit('locationFromClient', {'location': $('#location').val()});
+    });
+	$('#start').click(function(e){
+		socket.emit('initFromClient', {'location': $('#location').val()});
+		$(this).attr("disabled",true);
+		$('#setLocation').attr("disabled",false);
+	$('#send').attr("disabled",false);
+	});
+	$('#setLocation').attr("disabled",true);
+	$('#send').attr("disabled",true);
+  });
+  
+  </script>
+  <div id="messages"></div>
+  <br><br>
+  <input id="username" disabled></input><br>
+  <input id="location"></input>
+  <button id="setLocation">set</button>
+  <br>
+  <textarea id="text"></textarea>
+  <br><button id="send">send</button>
+  <br><br><button id="start">start</button>
+</body>
+</html>
